@@ -9,7 +9,6 @@ public class FTPServer {
     private boolean running;
 
     public FTPServer() {
-        // Criar diretório de armazenamento se não existir
         File storageDir = new File(STORAGE_DIR);
         if (!storageDir.exists()) {
             storageDir.mkdir();
@@ -26,7 +25,6 @@ public class FTPServer {
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("Novo cliente conectado: " + clientSocket.getInetAddress());
                 
-                // Criar uma nova thread para cada cliente
                 ClientHandler clientHandler = new ClientHandler(clientSocket);
                 new Thread(clientHandler).start();
             }
@@ -65,6 +63,9 @@ public class FTPServer {
                             break;
                         case "DOWNLOAD":
                             sendFile();
+                            break;
+                        case "DELETE":
+                            deleteFile();
                             break;
                         case "EXIT":
                             clientSocket.close();
@@ -112,6 +113,7 @@ public class FTPServer {
             
             if (!file.exists()) {
                 dataOutputStream.writeBoolean(false);
+                System.out.println("Arquivo não encontrado: " + fileName);
                 return;
             }
             
@@ -129,6 +131,26 @@ public class FTPServer {
             fileInputStream.close();
             dataOutputStream.flush();
             System.out.println("Arquivo enviado: " + fileName);
+        }
+
+        private void deleteFile() throws IOException {
+            String fileName = dataInputStream.readUTF();
+            File file = new File(STORAGE_DIR + File.separator + fileName);
+            
+            if (!file.exists()) {
+                dataOutputStream.writeBoolean(false);
+                System.out.println("Arquivo não encontrado para exclusão: " + fileName);
+                return;
+            }
+            
+            boolean deleted = file.delete();
+            dataOutputStream.writeBoolean(deleted);
+            
+            if (deleted) {
+                System.out.println("Arquivo excluído com sucesso: " + fileName);
+            } else {
+                System.out.println("Erro ao excluir arquivo: " + fileName);
+            }
         }
     }
 

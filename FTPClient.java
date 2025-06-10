@@ -69,21 +69,52 @@ public class FTPClient {
             return;
         }
 
+        File saveDir = new File(savePath);
+        if (!saveDir.exists()) {
+            saveDir.mkdirs();
+        }
+
         long fileSize = dataInputStream.readLong();
         File file = new File(savePath + File.separator + fileName);
         FileOutputStream fileOutputStream = new FileOutputStream(file);
         byte[] buffer = new byte[4096];
         int bytesRead;
         long totalBytesRead = 0;
+        
+        System.out.println("Iniciando download do arquivo: " + fileName);
+        System.out.println("Tamanho do arquivo: " + fileSize + " bytes");
 
         while (totalBytesRead < fileSize) {
             bytesRead = dataInputStream.read(buffer);
+            if (bytesRead == -1) break;
             fileOutputStream.write(buffer, 0, bytesRead);
             totalBytesRead += bytesRead;
+            
+            int progress = (int)((totalBytesRead * 100) / fileSize);
+            System.out.print("\rProgresso: " + progress + "%");
         }
+        System.out.println();
 
         fileOutputStream.close();
-        System.out.println("Arquivo baixado com sucesso: " + fileName);
+        if (totalBytesRead == fileSize) {
+            System.out.println("Arquivo baixado com sucesso: " + fileName);
+            System.out.println("Salvo em: " + file.getAbsolutePath());
+        } else {
+            System.out.println("Erro: Download incompleto!");
+            file.delete();
+        }
+    }
+
+    public void deleteFile(String fileName) throws IOException {
+        dataOutputStream.writeUTF("DELETE");
+        dataOutputStream.writeUTF(fileName);
+
+        boolean success = dataInputStream.readBoolean();
+        if (success) {
+            System.out.println("Arquivo excluído com sucesso: " + fileName);
+        } else {
+            System.out.println("Erro: Arquivo não encontrado ou não pode ser excluído.");
+        }
     }
 
     public static void main(String[] args) {
@@ -98,17 +129,22 @@ public class FTPClient {
                 System.out.println("1. Listar arquivos");
                 System.out.println("2. Enviar arquivo");
                 System.out.println("3. Baixar arquivo");
-                System.out.println("4. Sair");
+                System.out.println("4. Excluir arquivo");
+                System.out.println("5. Sair");
 
                 int choice = scanner.nextInt();
-                scanner.nextLine(); // Consumir nova linha
+                scanner.nextLine(); 
 
                 switch (choice) {
                     case 1:
                         List<String> files = client.listFiles();
                         System.out.println("\nArquivos no servidor:");
-                        for (String file : files) {
-                            System.out.println("- " + file);
+                        if (files.isEmpty()) {
+                            System.out.println("Nenhum arquivo encontrado.");
+                        } else {
+                            for (String file : files) {
+                                System.out.println("- " + file);
+                            }
                         }
                         break;
 
@@ -120,13 +156,25 @@ public class FTPClient {
 
                     case 3:
                         System.out.println("Digite o nome do arquivo para baixar:");
-                        String fileName = scanner.nextLine();
+                        String downloadFileName = scanner.nextLine();
                         System.out.println("Digite o diretório para salvar o arquivo:");
                         String savePath = scanner.nextLine();
-                        client.downloadFile(fileName, savePath);
+                        client.downloadFile(downloadFileName, savePath);
                         break;
 
                     case 4:
+                        System.out.println("Digite o nome do arquivo para excluir:");
+                        String deleteFileName = scanner.nextLine();
+                        System.out.println("Tem certeza que deseja excluir o arquivo '" + deleteFileName + "'? (S/N)");
+                        String confirm = scanner.nextLine().trim().toUpperCase();
+                        if (confirm.equals("S")) {
+                            client.deleteFile(deleteFileName);
+                        } else {
+                            System.out.println("Operação de exclusão cancelada.");
+                        }
+                        break;
+
+                    case 5:
                         client.disconnect();
                         return;
 
